@@ -1,6 +1,6 @@
 FROM alpine:3.7
 
-MAINTAINER David Coppit <david@coppit.org>
+LABEL maintainer="David Coppit <david@coppit.org>,Aline Freitas <noip-docker@alinefreitas.com.br>"
 
 ENV TERM=xterm-256color
 
