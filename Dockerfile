@@ -34,7 +34,7 @@ ADD https://www.noip.com/client/linux/noip-duc-linux.tar.gz /files/
 RUN set -x \
   && chmod a+rwX /files \
   && tar -C /files -x -f /files/noip-duc-linux.tar.gz noip-2.1.9-1/binaries/noip2-x86_64 \
-  && mv /files/noip-2.1.9-1/binaries/noip2-x86_64 /files \
+  && mv /files/noip-2.1.9-1/binaries/noip2-x86_64 /files/noip2 \
   && rm -rf /files/noip-2.1.9-1 /files/noip-duc-linux.tar.gz
 
 COPY ["noip.conf", "create_config.exp", "/files/"]
