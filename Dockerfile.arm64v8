@@ -1,0 +1,57 @@
+FROM arm64v8/alpine:latest as base
+FROM base as builder
+
+LABEL maintainer="David Coppit <david@coppit.org>,Aline Freitas <noip-docker@alinefreitas.com.br>"
+
+# For cross building on amd64 host
+COPY qemu-aarch64-static /usr/bin
+
+RUN apk add --update make gcc libc-dev
+ADD https://www.noip.com/client/linux/noip-duc-linux.tar.gz /files/
+RUN tar -C /files -x -f /files/noip-duc-linux.tar.gz \
+  && cd /files/noip-2.1.9-1 \
+  && make \
+  && cd - \
+  && mv /files/noip-2.1.9-1/noip2 /files
+
+FROM base
+
+LABEL maintainer="David Coppit <david@coppit.org>,Aline Freitas <noip-docker@alinefreitas.com.br>"
+
+ENV TERM=xterm-256color
+
+# For cross building on amd64 host
+COPY qemu-aarch64-static /usr/bin
+
+RUN true && \
+\
+# Basics, including runit
+apk add --no-cache --update bash curl htop runit && \
+\
+# Needed by our code
+apk add --no-cache expect libc6-compat && \
+\
+# RunIt stuff
+adduser -h /home/user-service -s /bin/sh -D user-service -u 2000 && \
+chown user-service:user-service /home/user-service && \
+mkdir -p /etc/run_once /etc/service
+
+# Boilerplate startup code
+COPY ./boot.sh /sbin/boot.sh
+RUN chmod +x /sbin/boot.sh
+CMD [ "/sbin/boot.sh" ]
+
+VOLUME ["/config"]
+
+RUN mkdir /files \
+  && chmod a+rwX /files
+
+COPY --from=builder /files /files
+COPY ["noip.conf", "create_config.exp", "/files/"]
+
+# run-parts ignores files with "." in them
+COPY parse_config_file.sh /etc/run_once/parse_config_file
+RUN chmod +x /etc/run_once/parse_config_file
+
+COPY noip.sh /etc/service/noip/run
+RUN chmod +x /etc/service/noip/run
