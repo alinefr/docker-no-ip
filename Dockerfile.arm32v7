@@ -1,21 +1,35 @@
-FROM alpine:3.7
+FROM arm32v7/alpine:latest as base
+FROM base as builder
+
+LABEL maintainer="David Coppit <david@coppit.org>,Aline Freitas <noip-docker@alinefreitas.com.br>"
+
+# For cross building on amd64 host
+COPY qemu-arm-static /usr/bin
+
+RUN apk add --update make gcc libc-dev
+ADD https://www.noip.com/client/linux/noip-duc-linux.tar.gz /files/
+RUN tar -C /files -x -f /files/noip-duc-linux.tar.gz \
+  && cd /files/noip-2.1.9-1 \
+  && make \
+  && cd - \
+  && mv /files/noip-2.1.9-1/noip2 /files
+
+FROM base
 
 LABEL maintainer="David Coppit <david@coppit.org>,Aline Freitas <noip-docker@alinefreitas.com.br>"
 
 ENV TERM=xterm-256color
 
+# For cross building on amd64 host
+COPY qemu-arm-static /usr/bin
+
 RUN true && \
 \
-echo "http://dl-cdn.alpinelinux.org/alpine/v3.7/community" >> /etc/apk/repositories && \
-apk --update upgrade && \
-\
 # Basics, including runit
-apk add bash curl htop runit && \
+apk add --no-cache --update bash curl htop runit && \
 \
 # Needed by our code
-apk add expect libc6-compat && \
-\
-rm -rf /var/cache/apk/* && \
+apk add --no-cache expect libc6-compat && \
 \
 # RunIt stuff
 adduser -h /home/user-service -s /bin/sh -D user-service -u 2000 && \
@@ -29,14 +43,10 @@ CMD [ "/sbin/boot.sh" ]
 
 VOLUME ["/config"]
 
-ADD https://www.noip.com/client/linux/noip-duc-linux.tar.gz /files/
+RUN mkdir /files \
+  && chmod a+rwX /files
 
-RUN set -x \
-  && chmod a+rwX /files \
-  && tar -C /files -x -f /files/noip-duc-linux.tar.gz noip-2.1.9-1/binaries/noip2-x86_64 \
-  && mv /files/noip-2.1.9-1/binaries/noip2-x86_64 /files/noip2 \
-  && rm -rf /files/noip-2.1.9-1 /files/noip-duc-linux.tar.gz
-
+COPY --from=builder /files /files
 COPY ["noip.conf", "create_config.exp", "/files/"]
 
 # run-parts ignores files with "." in them
